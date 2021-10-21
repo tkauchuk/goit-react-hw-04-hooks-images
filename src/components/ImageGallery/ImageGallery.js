@@ -1,4 +1,4 @@
-import { Component, Fragment } from "react";
+import { useState, Fragment, useEffect, useReducer } from 'react';
 import PropTypes from 'prop-types';
 import Loader from "react-loader-spinner";
 import styles from './ImageGallery.module.css'
@@ -11,129 +11,104 @@ import scrollToElement from "../../service/scroll-to-el";
 
 const key = '23015734-ca5f063b9797e09c36ee88a0d';
 
-class ImageGallery extends Component {
-    
-    static propTypes = {
-        keyword: PropTypes.string
-    }
 
-    state = {
-        images: [],
-        page: null,
-        error: null,
-        loading: false,
-        isModalShown: false,
-        largeImageData: {}
-    }
+function ImageGallery({keyword}) {
+    const [images, setImages] = useState([]);
+    const [query, setQuery] = useState(null);
+    const [page, setPage] = useState(null);
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [largeImageData, setLargeImageData] = useState(null);
 
-    componentDidUpdate(prevProps, prevState) {
-        if (prevProps.keyword !== this.props.keyword) {
-            this.setState({
-                images: [],
-                page: 1,
-                loading: true
-            }, () => {
-                const { keyword } = this.props;
-                const { page } = this.state;
-                const url = `https://pixabay.com/api/?q=${keyword}&page=${page}&key=${key}&image_type=photo&orientation=horizontal&per_page=12`;
 
-                getNewImages(url)
-                    .then(({ hits }) => this.setState({ images: hits }))
-                    .catch(error => this.setState({error}))
-                    .finally(() => this.setState({loading: false}))
-            });
+    useEffect(() => {
+        if (keyword === '') {
+            return;
         }
-    }
-    
-    onLoadMoreButtonClick = () => {
-        this.setState(({page}) => {
-            return {
-                page: page + 1,
-                loading: true
-            }
-        }, () => {
-            const { keyword } = this.props;
-            const { page } = this.state;
-            const url = `https://pixabay.com/api/?q=${keyword}&page=${page}&key=${key}&image_type=photo&orientation=horizontal&per_page=12`;
-            
-            getNewImages(url)
-                .then(({ hits }) => this.setState(({ images }) => {
-                    return {images: [...images, ...hits]}
-                }))
-                .then(() => {scrollToElement()})
-                .catch(error => this.setState({ error }))
-                .finally(() => {this.setState({loading: false})})
-        })
-    }
+        setImages([]);
+        setPage(1);
+        setQuery({query: keyword});
+    }, [keyword])
 
-    toggleModalState = event => {
-        this.setState(({ isModalShown }) => {
-            return {isModalShown: !isModalShown};
-        }, () => {
-            if (this.state.isModalShown) {
-                this.getLargeImageData(event.target);
-            }
-        })
-    }
+    useEffect(() => {
+        if (!page) {
+            return;
+        }
 
-    getLargeImageData = image => {
-            this.setState({
-            largeImageData: {
-                source: image.dataset.source,
-                alt: image.alt
-        }})        
+        setLoading(true);
+        const url = `https://pixabay.com/api/?q=${keyword}&page=${page}&key=${key}&image_type=photo&orientation=horizontal&per_page=12`;
+        getNewImages(url)
+          .then(({ hits }) => {
+               images.length > 0
+                ? setImages(state => [...state, ...hits])
+                : setImages(hits);
+          })
+          .then(() => {
+              if (page === 1) {
+                  return;
+              }
+              scrollToElement();
+          })
+          .catch(error => setError(error))
+          .finally(() => setLoading(false));
+    }, [page, query]) //eslint-disable-line react-hooks/exhaustive-deps
+
+    const onLoadMoreButtonClick = () => {
+        setPage(state => state + 1);
     }
 
-    render() {
-        const { loading, images, isModalShown, largeImageData, } = this.state;
-
-
-        return (
+    return (
+      <Fragment>
+          {error && (
+            <h1>{error}</h1>
+          )}
+          {loading && (
+            <div className={styles.loader}>
+                <Loader
+                  type='ThreeDots'
+                  color='#00BFFF'
+                  height={100}
+                  width={100}
+                  timeout={3000}
+                />
+            </div>)}
+          {images.length > 0 && (
             <Fragment>
-                {loading && (
-                    <div className={styles.loader}>
-                    <Loader
-                        type="ThreeDots"
-                        color="#00BFFF"
-                        height={100}
-                        width={100}
-                        timeout={3000}
-                    />
-                    </div>)}
-                {images.length > 0 && (
-                    <Fragment>
-                        <ul className={styles.gallery}>{
-                            images.map(({ id, webformatURL, largeImageURL, tags }, index) => {
-                                return (
-                                    <ImageGalleryItem
-                                        onModalClick={this.toggleModalState}
-                                        key={index}
-                                        id={id}
-                                        source={webformatURL}
-                                        alt={tags}
-                                        largeImageSrc={largeImageURL}
-                                    />
-                                );
-                            })
-                        }
-                        </ul>
-                        <Button
-                            handleLoading={this.onLoadMoreButtonClick}
-                            isImageLoading={loading}
-                        />
-                        {
-                            isModalShown && (
-                                <Modal
-                                    source={largeImageData.source}
-                                    descr={largeImageData.alt}
-                                    onModalClose={this.toggleModalState}
-                                />
-                            )}
-                    </Fragment>
-                )}
-            </Fragment>    
-        );
-    }
+                <ul className={styles.gallery}>{
+                    images.map(({ id, webformatURL, largeImageURL, tags }, index) => {
+                        return (
+                          <ImageGalleryItem
+                            onModalClick={setLargeImageData}
+                            key={index}
+                            id={id}
+                            source={webformatURL}
+                            alt={tags}
+                            largeImageSrc={largeImageURL}
+                          />
+                        );
+                    })
+                }
+                </ul>
+                <Button
+                  handleLoading={onLoadMoreButtonClick}
+                  isImageLoading={loading}
+                />
+                {
+                    largeImageData && (
+                      <Modal
+                        source={largeImageData.src}
+                        descr={largeImageData.alt}
+                        onModalClose={setLargeImageData}
+                      />
+                    )}
+            </Fragment>
+          )}
+      </Fragment>
+    );
 }
+
+ImageGallery.propTypes = {
+    keyword: PropTypes.string,
+};
 
 export default ImageGallery;

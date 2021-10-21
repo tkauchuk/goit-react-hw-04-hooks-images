@@ -1,25 +1,21 @@
-import { Component } from "react";
 import PropTypes from 'prop-types';
 import styles from './ImageGalleryItem.module.css';
 
-class ImageGalleryItem extends Component {
-    
-    static propTypes = {
-        id: PropTypes.number,
-        onModalClick: PropTypes.func,
-        source: PropTypes.string,
-        alt: PropTypes.string,
-        largeImageSrc: PropTypes.string
-    }
+function ImageGalleryItem({ id, onModalClick, source, alt, largeImageSrc }) {
 
-    render() {
-        const { id, onModalClick, source, alt, largeImageSrc } = this.props;
-        return (
-            <li className={styles.item} key={id} onClick={onModalClick}>
-                <img src={source} alt={alt} data-source={largeImageSrc} className={styles.image} />
-            </li>
-        );
-    }
+    return (
+      <li className={styles.item} key={id} onClick={() => {onModalClick({ src: largeImageSrc, alt})}}>
+          <img src={source} alt={alt} className={styles.image} />
+      </li>
+    );
+}
+
+ImageGalleryItem.propTypes = {
+    id: PropTypes.number,
+    onModalClick: PropTypes.func,
+    source: PropTypes.string,
+    alt: PropTypes.string,
+    largeImageSrc: PropTypes.string
 }
 
 export default ImageGalleryItem;
